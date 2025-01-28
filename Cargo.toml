@@ -2,6 +2,15 @@
 name = "cli"
 version = "0.1.0"
 edition = "2021"
+authors = ["Bench Computing <admin@bench.chat>"]
+description = "Bench CLI tool"
+repository = "https://github.com/chatbench/bench"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", features = ["winuser"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.169"
 
 [dependencies]
 anyhow = "1.0.95"
@@ -11,10 +20,10 @@ dirs = "6.0.0"
 eventsource-client = { version = "0.13.0" }
 futures = "0.3.31"
 futures-util = "0.3.31"
-rand = "0.8.5"
+rand = "0.9.0"
 reqwest = { version = "0.12.12", features = ["json", "native-tls-vendored"] }
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.137"
+serde_json = "1.0.138"
 time = "0.3.37"
 tokio = { version = "1.43.0", features = ["full"] }
 tokio-tungstenite = { version = "0.26.1", features = ["native-tls"] }
