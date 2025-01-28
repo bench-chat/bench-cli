@@ -1,0 +1,123 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'bench-v*'
+
+jobs:
+  build-and-release:
+    name: Build and Release CLI
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: bench
+            asset_name: bench-linux-amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: bench
+            asset_name: bench-linux-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: bench.exe
+            asset_name: bench-windows-amd64.exe
+          - os: macos-latest
+            target: universal-apple-darwin
+            artifact_name: bench
+            asset_name: bench-macos-universal
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target == 'universal-apple-darwin' && 'x86_64-apple-darwin aarch64-apple-darwin' || matrix.target }}
+
+      - name: Install Cross-Compilation Tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          echo '[target.aarch64-unknown-linux-gnu]' > ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+          echo 'ar = "aarch64-linux-gnu-ar"' >> ~/.cargo/config.toml
+
+      - name: Build Universal Binary
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          cd cli
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
+          mkdir -p target/release
+          lipo "target/x86_64-apple-darwin/release/bench" "target/aarch64-apple-darwin/release/bench" -create -output "target/release/bench"
+
+      - name: Build Non-Universal (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd cli
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Build Non-Universal (Linux)
+        if: matrix.os != 'macos-latest' && matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          cd cli
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          fi
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare asset
+        shell: bash
+        run: |
+          cd cli
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            tar -czf ${{ matrix.asset_name }}.tar.gz -C target/release bench
+          elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cd target/${{ matrix.target }}/release
+            7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
+          else
+            cd target/${{ matrix.target }}/release
+            tar -czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+          fi
+
+      - name: Generate SHA256
+        shell: bash
+        run: |
+          cd cli
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            sha256sum ${{ matrix.asset_name }}.zip > ${{ matrix.asset_name }}.zip.sha256
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            shasum -a 256 ${{ matrix.asset_name }}.tar.gz > ${{ matrix.asset_name }}.tar.gz.sha256
+          else
+            sha256sum ${{ matrix.asset_name }}.tar.gz > ${{ matrix.asset_name }}.tar.gz.sha256
+          fi
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            cli/${{ matrix.asset_name }}.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker Image
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          cd cli
+          # Copy the Linux binary to the Docker context
+          cp target/x86_64-unknown-linux-gnu/release/bench .
+
+          # Extract version from tag (updated for new tag format)
+          VERSION=${GITHUB_REF#refs/tags/bench-v}
+
+          # Build and push Docker image
+          docker build -t chatbench/cli:latest -t chatbench/cli:$VERSION .
