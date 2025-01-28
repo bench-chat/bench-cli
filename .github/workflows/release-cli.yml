@@ -50,7 +50,6 @@ jobs:
         if: matrix.os == 'macos-latest'
         shell: bash
         run: |
-          cd cli
           rustup target add x86_64-apple-darwin aarch64-apple-darwin
           cargo build --release --target x86_64-apple-darwin
           cargo build --release --target aarch64-apple-darwin
@@ -61,14 +60,12 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          cd cli
           cargo build --release --target ${{ matrix.target }}
 
       - name: Build Non-Universal (Linux)
         if: matrix.os != 'macos-latest' && matrix.os != 'windows-latest'
         shell: bash
         run: |
-          cd cli
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
             export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           fi
@@ -77,7 +74,6 @@ jobs:
       - name: Prepare asset
         shell: bash
         run: |
-          cd cli
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
             tar -czf ${{ matrix.asset_name }}.tar.gz -C target/release bench
           elif [ "${{ matrix.os }}" = "windows-latest" ]; then
@@ -91,7 +87,6 @@ jobs:
       - name: Generate SHA256
         shell: bash
         run: |
-          cd cli
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             sha256sum ${{ matrix.asset_name }}.zip > ${{ matrix.asset_name }}.zip.sha256
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
@@ -112,7 +107,6 @@ jobs:
       - name: Build Docker Image
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
-          cd cli
           # Copy the Linux binary to the Docker context
           cp target/x86_64-unknown-linux-gnu/release/bench .
 
