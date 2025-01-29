@@ -6,7 +6,7 @@ A command-line interface tool for Bench Computing.
 
 ### Pre-built Binaries
 
-Download the latest release for your platform from the [releases page](https://github.com/chatbench/bench/releases):
+Download the latest release for your platform from the [releases page](https://github.com/bench-chat/bench-cli/releases):
 
 - Linux (x64): `bench-linux-amd64.tar.gz`
 - Linux (ARM64): `bench-linux-arm64.tar.gz`
