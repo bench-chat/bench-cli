@@ -161,6 +161,7 @@ dependencies = [
  "clap",
  "dirs",
  "eventsource-client",
+ "form_urlencoded",
  "futures",
  "futures-util",
  "libc",

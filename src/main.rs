@@ -1,4 +1,4 @@
-use std::{io, process::Command, time::Duration};
+use std::{io, process::Command, time::Duration, env};
 use clap::{Parser, ValueEnum, command};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -53,6 +53,15 @@ struct WsMessageContent {
     correlationId: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ConnectionMetadata {
+    version: String,
+    os: String,
+    working_dir: String,
+    #[serde(rename = "type")]
+    client_type: String,
+}
+
 /// Executes a shell command and returns its output
 async fn execute_command(command: &str) -> io::Result<String> {
     let output = if cfg!(target_os = "windows") {
@@ -67,11 +76,19 @@ async fn execute_command(command: &str) -> io::Result<String> {
 
     let mut result = String::new();
     if !output.stdout.is_empty() {
+        result.push_str("STDOUT:\n");
         result.push_str(&String::from_utf8_lossy(&output.stdout));
+        result.push_str("\n");
     }
     if !output.stderr.is_empty() {
+        result.push_str("STDERR:\n");
         result.push_str(&String::from_utf8_lossy(&output.stderr));
+        result.push_str("\n");
     }
+    
+    result.push_str(&format!("Command exited with status code: {}", 
+        output.status.code().unwrap_or(-1)));
+        
     Ok(result)
 }
 
@@ -88,7 +105,26 @@ async fn get_ws_url(config: &Config, token: &str) -> Result<String, Box<dyn std:
 }
 
 async fn handle_ws_connection(ws_url: &str, token: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let url = format!("{}?clientType=server&channelId={}", ws_url, token);
+    // Create metadata
+    let metadata = ConnectionMetadata {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        os: std::env::consts::OS.to_string(),
+        working_dir: env::current_dir()?.to_string_lossy().into_owned(),
+        client_type: "terminal".to_string(),
+    };
+
+    // URL encode the metadata JSON
+    let metadata_json = serde_json::to_string(&metadata)?;
+    let encoded_metadata = form_urlencoded::byte_serialize(metadata_json.as_bytes()).collect::<String>();
+
+    // Add metadata to connection URL
+    let url = format!(
+        "{}?clientType=server&channelId={}&metadata={}", 
+        ws_url, 
+        token,
+        encoded_metadata
+    );
+
     let (ws_stream, _) = connect_async(&url).await?;
     let (mut write, mut read) = ws_stream.split();
     
