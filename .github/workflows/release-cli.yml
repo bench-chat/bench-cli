@@ -100,7 +100,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            cli/${{ matrix.asset_name }}.*
+            ${{ matrix.asset_name }}.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
