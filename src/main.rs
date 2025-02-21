@@ -6,11 +6,16 @@ use reqwest::Client;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use tracing::{info, error, debug};
 use tokio::sync::mpsc;
+use tokio::time::{sleep, Instant};
 
 mod config;
 mod token;
 use config::{Config, Environment};
 use token::TokenManager;
+
+// Define constants for WebSocket ping/pong
+const PING_INTERVAL: Duration = Duration::from_secs(30);
+const PONG_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -130,8 +135,23 @@ async fn handle_ws_connection(ws_url: &str, token: &str) -> Result<(), Box<dyn s
     
     info!("WebSocket connection established");
 
-    // Create a channel for sending WebSocket messages
     let (tx, mut rx) = mpsc::channel(32);
+    
+    // Create a separate sender for pings
+    let ping_tx = tx.clone();
+    
+    // Spawn ping sender task
+    let ping_handle = tokio::spawn(async move {
+        loop {
+            sleep(PING_INTERVAL).await;
+            if let Err(e) = ping_tx.send(Message::Ping(vec![].into())).await {
+                error!(error = %e, "Failed to send ping");
+                break;
+            }
+        }
+    });
+
+    let mut last_pong = Instant::now();
 
     // Spawn a task to forward messages from the channel to the WebSocket
     let forward_handle = tokio::spawn({
@@ -147,7 +167,17 @@ async fn handle_ws_connection(ws_url: &str, token: &str) -> Result<(), Box<dyn s
 
     while let Some(msg) = read.next().await {
         match msg {
+            Ok(Message::Pong(_)) => {
+                debug!("Received pong");
+                last_pong = Instant::now();
+            }
             Ok(Message::Text(text)) => {
+                // Check pong timeout
+                if last_pong.elapsed() >= PONG_TIMEOUT {
+                    error!("WebSocket connection timed out - no pong received");
+                    break;
+                }
+                
                 debug!(message = %text, "Received message");
                 
                 let ws_msg: serde_json::Value = match serde_json::from_str(&text) {
@@ -197,10 +227,19 @@ async fn handle_ws_connection(ws_url: &str, token: &str) -> Result<(), Box<dyn s
             }
             _ => {}
         }
+
+        // Check for pong timeout
+        if last_pong.elapsed() >= PONG_TIMEOUT {
+            error!("Pong timeout - connection appears stale");
+            break;
+        }
     }
 
+    // Cleanup
+    ping_handle.abort();
     forward_handle.abort();
-    Ok(())
+    
+    Err("Connection terminated".into())
 }
 
 #[tokio::main]
