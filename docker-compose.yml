@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   bench:
-    image: chatbench/cli:latest
+    image: bench-chat/cli:latest
     volumes:
       - ~/.bench/root:/home/bench
     stdin_open: true

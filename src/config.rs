@@ -27,7 +27,7 @@ impl Config {
     pub fn new(env: &Environment) -> anyhow::Result<Self> {
         let base_url = match env {
             Environment::Local => Url::parse("http://localhost:3001")?,
-            Environment::Production => Url::parse("https://bench.chat")?,
+            Environment::Production => Url::parse("https://bench.io")?,
             Environment::Custom(url) => Url::parse(url)?,
         };
         Ok(Self { base_url })
