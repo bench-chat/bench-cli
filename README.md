@@ -20,7 +20,7 @@ Download the latest release for your platform from the [releases page](https://g
 2. Clone the repository:
 ```bash
 git clone https://github.com/bench-chat/bench-cli
-cd bench
+cd bench-cli
 ```
 
 3. Build the project:
