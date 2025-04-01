@@ -19,7 +19,7 @@ Download the latest release for your platform from the [releases page](https://g
 
 2. Clone the repository:
 ```bash
-git clone https://github.com/chatbench/bench
+git clone https://github.com/bench-chat/bench-cli
 cd bench
 ```
 
@@ -44,7 +44,7 @@ docker-compose run --rm bench
 
 Or directly with Docker:
 ```bash
-docker run -it --rm -v ~/.bench/root:/home/bench chatbench/cli:latest
+docker run -it --rm -v ~/.bench/root:/home/bench bench-cli/cli:latest
 ```
 
 The entire home directory of the bench user inside the container will be persisted to `~/.bench/root` on your host system, including:

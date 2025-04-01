@@ -117,4 +117,4 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/bench-v}
 
           # Build and push Docker image
-          docker build -t chatbench/cli:latest -t chatbench/cli:$VERSION .
+          docker build -t bench-chat/cli:latest -t bench-chat/cli:$VERSION .

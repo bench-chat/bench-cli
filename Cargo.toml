@@ -2,9 +2,9 @@
 name = "bench"
 version = "0.1.0"
 edition = "2021"
-authors = ["Bench Computing <admin@bench.chat>"]
+authors = ["Bench Computing <admin@bench.io>"]
 description = "Bench CLI tool"
-repository = "https://github.com/chatbench/bench"
+repository = "https://github.com/bench-chat/bench"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["winuser"] }
